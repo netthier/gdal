@@ -63,6 +63,10 @@ pub fn create_and_reproject<P: AsRef<Path>>(
             let mut options_c = CslStringList::new();
             for option in creation_options {
                 options_c.set_name_value(&option.0, &option.1)?;
+                println!(
+                    "Setting reproject creation opt {} to {}",
+                    &option.0, &option.1
+                );
             }
             options_c.as_ptr()
         } else {
