@@ -59,19 +59,12 @@ pub fn create_and_reproject<P: AsRef<Path>>(
 
         let mut warp_options = options.clone_and_init_warp_options(src.raster_count())?;
 
-        let creation_options_c = if let Some(creation_options) = options.creation_options() {
-            let mut options_c = CslStringList::new();
+        let mut creation_options_c = CslStringList::new();
+        if let Some(creation_options) = options.creation_options() {
             for option in creation_options {
-                options_c.set_name_value(&option.0, &option.1)?;
-                println!(
-                    "Setting reproject creation opt {} to {}",
-                    &option.0, &option.1
-                );
+                creation_options_c.set_name_value(&option.0, &option.1)?;
             }
-            options_c.as_ptr()
-        } else {
-            ptr::null_mut()
-        };
+        }
 
         let rv = unsafe {
             // See: https://github.com/OSGeo/gdal/blob/7b6c3fe71d61699abe66ea372bcd110701e38ff3/alg/gdalwarper.cpp#L235
@@ -81,7 +74,7 @@ pub fn create_and_reproject<P: AsRef<Path>>(
                 dest.as_ptr(),
                 dst_wkt.as_ptr(),
                 driver.c_driver(),
-                creation_options_c, // create options
+                creation_options_c.as_ptr(),
                 warp_options.resampling_alg().to_gdal(),
                 warp_options.memory_limit() as f64,
                 options.max_error().unwrap_or(0.0),
