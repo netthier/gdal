@@ -9,20 +9,20 @@ mod reproject_options;
 mod resample;
 mod warp_options;
 
+use crate::cpl::CslStringList;
 use gdal_sys::CPLErr;
 pub use reproject_options::*;
 pub use resample::*;
-use std::ffi::CString;
-use std::path::Path;
-use std::ptr;
+use std::{ffi::CString, path::Path, ptr};
 pub use warp_options::*;
 
-use crate::dataset::Dataset;
-use crate::DriverManager;
+use crate::{dataset::Dataset, DriverManager};
 
-use crate::errors::*;
-use crate::spatial_ref::SpatialRef;
-use crate::utils::{_last_cpl_err, _path_to_c_string};
+use crate::{
+    errors::*,
+    spatial_ref::SpatialRef,
+    utils::{_last_cpl_err, _path_to_c_string},
+};
 
 /// Reproject raster dataset into the given [`SpatialRef`] and save result to `dst_file`.
 pub fn create_and_reproject<P: AsRef<Path>>(
@@ -59,6 +59,16 @@ pub fn create_and_reproject<P: AsRef<Path>>(
 
         let mut warp_options = options.clone_and_init_warp_options(src.raster_count())?;
 
+        let creation_options_c = if let Some(creation_options) = options.creation_options() {
+            let mut options_c = CslStringList::new();
+            for option in creation_options {
+                options_c.set_name_value(&option.0, &option.1)?;
+            }
+            options_c.as_ptr()
+        } else {
+            ptr::null_mut()
+        };
+
         let rv = unsafe {
             // See: https://github.com/OSGeo/gdal/blob/7b6c3fe71d61699abe66ea372bcd110701e38ff3/alg/gdalwarper.cpp#L235
             gdal_sys::GDALCreateAndReprojectImage(
@@ -67,7 +77,7 @@ pub fn create_and_reproject<P: AsRef<Path>>(
                 dest.as_ptr(),
                 dst_wkt.as_ptr(),
                 driver.c_driver(),
-                ptr::null_mut(), // create options
+                creation_options_c, // create options
                 warp_options.resampling_alg().to_gdal(),
                 warp_options.memory_limit() as f64,
                 options.max_error().unwrap_or(0.0),
@@ -166,11 +176,14 @@ pub fn reproject_into(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::errors::Result;
-    use crate::raster::GdalDataType;
-    use crate::spatial_ref::SpatialRef;
-    use crate::test_utils::{fixture, InMemoryFixture, TempFixture};
-    use crate::{assert_near, Dataset};
+    use crate::{
+        assert_near,
+        errors::Result,
+        raster::GdalDataType,
+        spatial_ref::SpatialRef,
+        test_utils::{fixture, InMemoryFixture, TempFixture},
+        Dataset,
+    };
 
     // TODO: For some unknown reason this test fails on GDAL < 3.4
     #[cfg(any(all(major_ge_3, minor_ge_4), major_ge_4))]

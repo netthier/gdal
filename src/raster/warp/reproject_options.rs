@@ -1,6 +1,8 @@
-use crate::errors::Result;
-use crate::raster::warp::GdalWarpOptions;
-use crate::spatial_ref::SpatialRef;
+use crate::{
+    errors::Result,
+    raster::{warp::GdalWarpOptions, RasterCreationOption},
+    spatial_ref::SpatialRef,
+};
 
 /// Injects methods associated with specifying warp no-data values.
 macro_rules! nodata_accessors {
@@ -113,6 +115,7 @@ pub struct ReprojectOptions {
     src_nodata: Option<f64>,
     dst_nodata: Option<f64>,
     output_format: Option<String>,
+    creation_options: Option<Vec<(String, String)>>,
 }
 
 impl ReprojectOptions {
@@ -166,6 +169,15 @@ impl ReprojectOptions {
     /// Fetch the specified output format driver identifier, if any.
     pub fn output_format(&self) -> Option<String> {
         self.output_format.clone()
+    }
+
+    pub fn with_creation_options(&mut self, creation_options: &[(String, String)]) -> &mut Self {
+        self.creation_options = Some(creation_options.to_vec());
+        self
+    }
+
+    pub fn creation_options(&self) -> Option<Vec<(String, String)>> {
+        self.creation_options.clone()
     }
 
     src_sr_accessors!();
